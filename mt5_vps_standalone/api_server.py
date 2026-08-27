@@ -128,7 +128,12 @@ def spawn_worker(slot_data: dict):
     # Detect if we should use wine or native python
     is_wine = (sys.platform != 'win32') and os.path.exists('/usr/bin/wine')
     if is_wine:
-        cmd = ["wine", "python", script_path, f"--slot={slot_id}", f"--port={port}", f"--terminal={term}"]
+        if os.path.exists('/usr/local/bin/wine-python'):
+            cmd = ["/usr/local/bin/wine-python", script_path, f"--slot={slot_id}", f"--port={port}", f"--terminal={term}"]
+        elif os.path.exists('/root/.wine/drive_c/Python311/python.exe'):
+            cmd = ["wine", "C:\\Python311\\python.exe", script_path, f"--slot={slot_id}", f"--port={port}", f"--terminal={term}"]
+        else:
+            cmd = ["wine", "python", script_path, f"--slot={slot_id}", f"--port={port}", f"--terminal={term}"]
     else:
         cmd = [sys.executable, script_path, f"--slot={slot_id}", f"--port={port}", f"--terminal={term}"]
 
