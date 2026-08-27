@@ -10,5 +10,6 @@ services:
       - BRIDGE_PORT=5050
       - MT5_TOTAL_SLOTS=10
       - MT5_BUSY_THRESHOLD=10.0
+      - PYTHONIOENCODING=utf-8
     volumes:
       - ./mt5_terminals_data:/root/.wine/drive_c/MT5_Terminals
