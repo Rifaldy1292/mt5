@@ -7,11 +7,12 @@ ENV WINEARCH=win64
 ENV WINEPREFIX=/root/.wine
 ENV WINEDLLOVERRIDES="mscoree,mshtml="
 
-# 1. Install prerequisites, Xvfb & Wine
+# 1. Install prerequisites, Xvfb, Unzip & Wine
 RUN dpkg --add-architecture i386 && \
     apt-get update && apt-get install -y --no-install-recommends \
     wget \
     curl \
+    unzip \
     gnupg2 \
     software-properties-common \
     ca-certificates \
@@ -33,19 +34,26 @@ COPY worker_instance.py .
 COPY mt5_client.py .
 COPY history_parser.py .
 
-# 3. Setup Wine Virtual Display, Install Python Windows & MT5
+# 3. Setup Wine, Extract Python Windows (Embeddable), Install Pip & MT5
 RUN Xvfb :99 -screen 0 1024x768x16 & \
     export DISPLAY=:99 && \
     wineboot --init && \
     wineserver -w && \
-    wget -q https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe && \
-    wine python-3.11.9-amd64.exe /quiet InstallAllUsers=1 TargetDir="C:\\Python311" PrependPath=1 Include_pip=1 && \
-    wineserver -w && \
-    rm -f python-3.11.9-amd64.exe && \
+    mkdir -p /root/.wine/drive_c/Python311 && \
+    wget -q https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip && \
+    unzip -q python-3.11.9-embed-amd64.zip -d /root/.wine/drive_c/Python311 && \
+    rm -f python-3.11.9-embed-amd64.zip && \
+    sed -i 's/#import site/import site/' /root/.wine/drive_c/Python311/python311._pth || true && \
+    echo "Lib/site-packages" >> /root/.wine/drive_c/Python311/python311._pth && \
+    echo "." >> /root/.wine/drive_c/Python311/python311._pth && \
+    mkdir -p /root/.wine/drive_c/Python311/Lib/site-packages && \
+    wget -q https://bootstrap.pypa.io/get-pip.py && \
+    wine "C:\\Python311\\python.exe" get-pip.py --no-warn-script-location && \
+    rm -f get-pip.py && \
+    wine "C:\\Python311\\python.exe" -m pip install --upgrade pip --no-warn-script-location && \
+    wine "C:\\Python311\\python.exe" -m pip install -r requirements.txt --no-warn-script-location && \
     (wine mt5setup.exe /auto || true) && \
     wineserver -w && \
-    wine "C:\\Python311\\python.exe" -m pip install --upgrade pip && \
-    wine "C:\\Python311\\python.exe" -m pip install -r requirements.txt && \
     mkdir -p "/root/.wine/drive_c/MT5_Terminals" && \
     for i in $(seq 1 10); do \
         if [ -d "/root/.wine/drive_c/Program Files/MetaTrader 5" ]; then \
