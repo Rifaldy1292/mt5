@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  mt5-bridge:
+    build: .
+    container_name: traderoom_mt5_bridge
+    restart: unless-stopped
+    ports:
+      - "5050:5050"
+    environment:
+      - BRIDGE_HOST=0.0.0.0
+      - BRIDGE_PORT=5050
+      - MT5_IDLE_SECONDS=1800
+    volumes:
+      - ./mt5_data:/root/.wine/drive_c/Program Files/MetaTrader 5

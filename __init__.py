@@ -1,0 +1,3 @@
+"""
+jurnalTrading package root
+"""
