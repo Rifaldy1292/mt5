@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mt5-bridge:
     build: .
@@ -10,6 +8,7 @@ services:
     environment:
       - BRIDGE_HOST=0.0.0.0
       - BRIDGE_PORT=5050
-      - MT5_IDLE_SECONDS=1800
+      - MT5_TOTAL_SLOTS=10
+      - MT5_BUSY_THRESHOLD=10.0
     volumes:
-      - ./mt5_data:/root/.wine/drive_c/Program Files/MetaTrader 5
+      - ./mt5_terminals_data:/root/.wine/drive_c/MT5_Terminals
