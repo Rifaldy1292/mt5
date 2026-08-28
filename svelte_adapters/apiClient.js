@@ -4,7 +4,7 @@
  */
 
 export class MT5ApiClient {
-  constructor(baseUrl = 'http://127.0.0.1:5050') {
+  constructor(baseUrl = 'http://148.230.103.84:5050') {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
   }
 

@@ -120,22 +120,22 @@ class WorkerRequestHandler(BaseHTTPRequestHandler):
                 return
 
             try:
-                print(f"🔑 [WORKER #{SLOT_ID}] Connecting to {login}@{server} (Terminal: {TERMINAL_PATH})...")
+                print(f"[WORKER #{SLOT_ID}] Connecting to {login}@{server} (Terminal: {TERMINAL_PATH})...")
                 acc = SESSION.connect(login=int(login), password=str(password), server=str(server))
-                print(f"✅ [WORKER #{SLOT_ID}] Connected: {acc.get('login')}@{acc.get('server')}")
+                print(f"[WORKER #{SLOT_ID}] Connected: {acc.get('login')}@{acc.get('server')}")
                 self._send_json(200, {
                     'status': 'CONNECTED',
                     'slot': SLOT_ID,
                     'account': acc
                 })
             except Exception as e:
-                print(f"❌ [WORKER #{SLOT_ID}] Connect failed: {e}")
+                print(f"[WORKER #{SLOT_ID}] Connect failed: {e}")
                 self._send_json(401, {'error': str(e)})
             return
 
         if path == '/disconnect':
             SESSION.disconnect()
-            print(f"🛑 [WORKER #{SLOT_ID}] Disconnected.")
+            print(f"[WORKER #{SLOT_ID}] Disconnected.")
             self._send_json(200, {'status': 'DISCONNECTED', 'slot': SLOT_ID})
             return
 
@@ -144,7 +144,7 @@ class WorkerRequestHandler(BaseHTTPRequestHandler):
 
 def run_worker():
     server = ThreadingHTTPServer(('127.0.0.1', PORT), WorkerRequestHandler)
-    print(f"🚀 [WORKER #{SLOT_ID}] Micro-Server online on 127.0.0.1:{PORT}")
+    print(f"[WORKER #{SLOT_ID}] Micro-Server online on 127.0.0.1:{PORT}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

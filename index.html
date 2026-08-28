@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeRoom MT5 Analytics</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0f1115',
+                        panel: '#161920',
+                        accent: '#10b981',
+                        accentHover: '#059669',
+                        danger: '#f43f5e'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            background-color: #0f1115;
+            color: #f3f4f6;
+            font-family: 'Inter', sans-serif;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+        
+        /* Glassmorphism Panels */
+        .glass-panel {
+            background: rgba(22, 25, 32, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .dna-bar-fill {
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .loader {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-bottom-color: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-200 antialiased p-4 md:p-8">
+
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-dark/80 backdrop-blur-md transition-opacity duration-300">
+        <div class="glass-panel w-full max-w-md p-8 rounded-2xl relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent to-emerald-400"></div>
+            
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-accent/10 text-accent mb-4">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                </div>
+                <h1 class="text-2xl font-bold text-white tracking-tight">TradeRoom Connect</h1>
+                <p class="text-sm text-gray-400 mt-2">Masuk ke akun MT5 VPS Anda</p>
+            </div>
+
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">IP VPS / API URL</label>
+                    <input type="text" id="apiUrl" value="http://148.230.103.84:5050" class="w-full px-4 py-3 bg-dark border border-gray-800 rounded-xl focus:outline-none focus:border-accent text-sm transition-colors" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">MT5 Login (Account Number)</label>
+                    <input type="number" id="loginId" placeholder="Misal: 12345678" class="w-full px-4 py-3 bg-dark border border-gray-800 rounded-xl focus:outline-none focus:border-accent text-sm transition-colors" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">MT5 Password</label>
+                    <input type="password" id="password" placeholder="••••••••" class="w-full px-4 py-3 bg-dark border border-gray-800 rounded-xl focus:outline-none focus:border-accent text-sm transition-colors" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">Broker Server</label>
+                    <input type="text" id="server" placeholder="Misal: Valetax-Live" class="w-full px-4 py-3 bg-dark border border-gray-800 rounded-xl focus:outline-none focus:border-accent text-sm transition-colors" required>
+                </div>
+
+                <div id="loginError" class="hidden p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-xs text-center"></div>
+
+                <button type="submit" id="loginBtn" class="w-full py-3 mt-4 bg-accent hover:bg-accentHover text-white font-semibold rounded-xl transition-all shadow-lg shadow-accent/20 flex justify-center items-center gap-2">
+                    <span>Connect to VPS</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div id="dashboard" class="max-w-6xl mx-auto hidden opacity-0 transition-opacity duration-500">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 pb-6 border-b border-gray-800/50 gap-4">
+            <div>
+                <h2 class="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
+                    MT5 Journal Analytics
+                    <span class="px-2.5 py-1 text-xs rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        LIVE
+                    </span>
+                </h2>
+                <p id="accountInfo" class="text-sm text-gray-400 mt-1 flex items-center gap-2">
+                    <span id="accNumber" class="font-mono text-gray-300">---</span> • <span id="accServer">---</span> • <span id="accBalance" class="text-white font-semibold">$0.00</span>
+                </p>
+            </div>
+            <button id="logoutBtn" class="px-4 py-2 rounded-lg bg-gray-800/50 hover:bg-gray-800 text-sm text-gray-300 transition-colors border border-gray-700/50 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                Disconnect
+            </button>
+        </header>
+
+        <div id="loadingData" class="flex flex-col items-center justify-center py-20 hidden">
+            <span class="loader w-10 h-10 mb-4"></span>
+            <p class="text-sm text-gray-400 animate-pulse">Menarik History dari VPS...</p>
+        </div>
+
+        <div id="dashboardContent" class="space-y-6">
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                <!-- Net PNL -->
+                <div class="glass-panel p-5 rounded-2xl">
+                    <div class="text-xs text-gray-400 font-medium mb-1 uppercase tracking-wider">Net Realized P&L</div>
+                    <div class="flex items-baseline gap-2">
+                        <h3 id="statNetPnl" class="text-2xl md:text-3xl font-bold">$0.00</h3>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-500">Gross: <span id="statGross"></span></div>
+                </div>
+                
+                <!-- Win Rate -->
+                <div class="glass-panel p-5 rounded-2xl">
+                    <div class="text-xs text-gray-400 font-medium mb-1 uppercase tracking-wider">Win Rate</div>
+                    <h3 id="statWinRate" class="text-2xl md:text-3xl font-bold text-white">0%</h3>
+                    <div class="mt-2 text-xs text-gray-500"><span id="statWL"></span></div>
+                </div>
+
+                <!-- Profit Factor -->
+                <div class="glass-panel p-5 rounded-2xl relative overflow-hidden">
+                    <div class="absolute -right-6 -top-6 w-24 h-24 bg-blue-500/10 rounded-full blur-xl"></div>
+                    <div class="text-xs text-gray-400 font-medium mb-1 uppercase tracking-wider">Profit Factor</div>
+                    <h3 id="statProfitFactor" class="text-2xl md:text-3xl font-bold text-blue-400">0.0</h3>
+                    <div class="mt-2 text-xs text-gray-500">Avg RR: <span id="statAvgR"></span></div>
+                </div>
+
+                <!-- Max Drawdown -->
+                <div class="glass-panel p-5 rounded-2xl relative overflow-hidden">
+                    <div class="absolute -right-6 -top-6 w-24 h-24 bg-danger/10 rounded-full blur-xl"></div>
+                    <div class="text-xs text-gray-400 font-medium mb-1 uppercase tracking-wider">Max Drawdown</div>
+                    <h3 id="statDrawdown" class="text-2xl md:text-3xl font-bold text-rose-400">0%</h3>
+                    <div class="mt-2 text-xs text-gray-500">-<span id="statDrawdownAmt"></span></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Equity Curve Chart -->
+                <div class="lg:col-span-2 glass-panel p-5 md:p-6 rounded-2xl">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-semibold text-white">Equity Curve</h3>
+                        <div class="text-xs px-3 py-1 bg-gray-800 rounded-lg text-gray-400">Last 60 Days</div>
+                    </div>
+                    <div class="relative h-[300px] w-full">
+                        <canvas id="equityChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Trader DNA -->
+                <div class="glass-panel p-5 md:p-6 rounded-2xl flex flex-col">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h3 class="text-lg font-semibold text-white">Trader DNA</h3>
+                            <p class="text-xs text-gray-400 mt-1">Behavioral Assessment</p>
+                        </div>
+                        <div class="flex flex-col items-end">
+                            <div id="dnaGrade" class="text-2xl font-bold text-emerald-400">A+</div>
+                            <div class="text-xs font-medium text-gray-500"><span id="dnaScore"></span>/100</div>
+                        </div>
+                    </div>
+
+                    <div id="dnaBars" class="space-y-4 flex-grow">
+                        <!-- DNA bars injected here -->
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-gray-800">
+                        <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Key Insights</h4>
+                        <div id="dnaFindings" class="space-y-2">
+                            <!-- Findings injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include Bundled Engine -->
+    <script src="journal.bundle.js"></script>
+
+    <script>
+        // State
+        let baseUrl = '';
+        let currentAccount = null;
+        let chartInstance = null;
+
+        // Elements
+        const el = (id) => document.getElementById(id);
+        const loginScreen = el('loginScreen');
+        const loginForm = el('loginForm');
+        const loginBtn = el('loginBtn');
+        const loginError = el('loginError');
+        const dashboard = el('dashboard');
+        const loadingData = el('loadingData');
+        const dashboardContent = el('dashboardContent');
+
+        // Handlers
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            baseUrl = el('apiUrl').value.replace(/\/+$/, '');
+            const login = el('loginId').value;
+            const password = el('password').value;
+            const server = el('server').value;
+
+            loginError.classList.add('hidden');
+            loginBtn.innerHTML = '<span class="loader w-5 h-5"></span> Connecting...';
+            loginBtn.disabled = true;
+
+            try {
+                // Login
+                const res = await fetch(`${baseUrl}/api/mt5/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ login: Number(login), password, server })
+                });
+                const data = await res.json();
+                
+                if (!res.ok) throw new Error(data.error || 'Login failed');
+
+                currentAccount = data.account;
+                el('accNumber').innerText = currentAccount.login;
+                el('accServer').innerText = currentAccount.server;
+
+                // Hide login, show dashboard skeleton
+                loginScreen.classList.add('opacity-0');
+                setTimeout(() => {
+                    loginScreen.classList.add('hidden');
+                    dashboard.classList.remove('hidden');
+                    // Trigger reflow
+                    void dashboard.offsetWidth;
+                    dashboard.classList.remove('opacity-0');
+                    fetchDataAndRender(login);
+                }, 300);
+
+            } catch (err) {
+                loginError.innerText = err.message;
+                loginError.classList.remove('hidden');
+            } finally {
+                loginBtn.innerHTML = 'Connect to VPS';
+                loginBtn.disabled = false;
+            }
+        });
+
+        el('logoutBtn').addEventListener('click', async () => {
+            if(!currentAccount) return;
+            try {
+                await fetch(`${baseUrl}/api/mt5/disconnect`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ login: currentAccount.login })
+                });
+            } catch(e) {}
+            location.reload();
+        });
+
+        async function fetchDataAndRender(loginId) {
+            dashboardContent.classList.add('hidden');
+            loadingData.classList.remove('hidden');
+
+            try {
+                // Fetch Snapshot
+                const snapRes = await fetch(`${baseUrl}/api/mt5/snapshot?account=${loginId}`);
+                if (!snapRes.ok) throw new Error('Failed to fetch snapshot');
+                const snapData = (await snapRes.json()).data;
+
+                el('accBalance').innerText = `$${snapData.balance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits:2})}`;
+
+                // Fetch History
+                const histRes = await fetch(`${baseUrl}/api/mt5/history?account=${loginId}&days=60`);
+                if (!histRes.ok) throw new Error('Failed to fetch history');
+                const histData = (await histRes.json()).data;
+
+                processAndRender(histData, snapData);
+
+                loadingData.classList.add('hidden');
+                dashboardContent.classList.remove('hidden');
+            } catch (err) {
+                alert("Gagal memuat data dari VPS: " + err.message);
+                loadingData.classList.add('hidden');
+            }
+        }
+
+        function processAndRender(histData, snapData) {
+            // Use JournalCore (bundled from index.js)
+            const { 
+                normalizeTrade, 
+                normalizeCashflow, 
+                calculateJournalAnalytics, 
+                calculateTraderDNA, 
+                generateEquityCurve 
+            } = window.JournalCore;
+
+            const trades = (histData.closedTrades || []).map(normalizeTrade);
+            const cashflows = (histData.cashflows || []).map(normalizeCashflow);
+            
+            // Reconstruct initial balance (current balance - all net pnl - all net deposits)
+            const totalTradePnl = trades.reduce((sum, t) => sum + t.pnl, 0);
+            const totalDeposits = cashflows.reduce((sum, c) => sum + (c.type==='DEPOSIT' ? c.amount : -c.amount), 0);
+            const initialBalance = snapData.balance - totalTradePnl - totalDeposits;
+
+            const profile = { initialBalance, floatingPnl: snapData.equity - snapData.balance };
+
+            // 1. Core Analytics
+            const stats = calculateJournalAnalytics(trades, profile, cashflows);
+            
+            const netPnlEl = el('statNetPnl');
+            netPnlEl.innerText = `${stats.netPnl >= 0 ? '+' : ''}$${stats.netPnl.toLocaleString()}`;
+            netPnlEl.className = `text-2xl md:text-3xl font-bold ${stats.netPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+            el('statGross').innerText = `$${stats.grossProfit} / -$${stats.grossLoss}`;
+            
+            el('statWinRate').innerText = `${stats.winRate}%`;
+            el('statWL').innerText = `${stats.wins}W / ${stats.losses}L (${stats.breakEven}BE)`;
+            
+            el('statProfitFactor').innerText = stats.profitFactor;
+            el('statAvgR').innerText = `${stats.avgR}R`;
+            
+            el('statDrawdown').innerText = `${stats.maxDrawdownPct}%`;
+            el('statDrawdownAmt').innerText = `$${stats.maxDrawdownAmount}`;
+
+            // 2. DNA
+            const dna = calculateTraderDNA(trades, stats);
+            el('dnaGrade').innerText = dna.grade;
+            el('dnaScore').innerText = dna.overall;
+
+            let dnaHtml = '';
+            for(const [dim, score] of Object.entries(dna.dimensions)) {
+                let color = score >= 80 ? 'bg-emerald-400' : (score >= 60 ? 'bg-amber-400' : 'bg-rose-400');
+                dnaHtml += `
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="capitalize text-gray-300">${dim.replace(/([A-Z])/g, ' $1').trim()}</span>
+                            <span class="font-medium text-gray-400">${score}/100</span>
+                        </div>
+                        <div class="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                            <div class="${color} h-1.5 rounded-full dna-bar-fill" style="width: 0%" data-width="${score}%"></div>
+                        </div>
+                    </div>
+                `;
+            }
+            el('dnaBars').innerHTML = dnaHtml;
+
+            // Animate bars slightly after render
+            setTimeout(() => {
+                document.querySelectorAll('.dna-bar-fill').forEach(b => b.style.width = b.dataset.width);
+            }, 100);
+
+            let findingsHtml = '';
+            dna.findings.forEach(f => {
+                let bg = f.level === 'risk' ? 'bg-rose-500/10 text-rose-300 border-rose-500/20' : (f.level === 'warn' ? 'bg-amber-500/10 text-amber-300 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20');
+                findingsHtml += `
+                    <div class="p-3 rounded-xl border ${bg} text-xs">
+                        <strong class="block mb-0.5">${f.title}</strong>
+                        <p class="opacity-80">${f.detail}</p>
+                    </div>
+                `;
+            });
+            el('dnaFindings').innerHTML = findingsHtml;
+
+            // 3. Equity Curve Chart
+            const curve = generateEquityCurve(trades, initialBalance, cashflows);
+            renderChart(curve);
+        }
+
+        function renderChart(curveData) {
+            const ctx = document.getElementById('equityChart').getContext('2d');
+            
+            if(chartInstance) chartInstance.destroy();
+            
+            if(curveData.length === 0) return;
+
+            const labels = curveData.map(d => new Date(d.time).toLocaleDateString(undefined, {month:'short', day:'numeric'}));
+            const data = curveData.map(d => d.balance);
+
+            // Gradient fill
+            let gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
+            gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Account Balance',
+                        data: data,
+                        borderColor: '#10b981',
+                        borderWidth: 2,
+                        backgroundColor: gradient,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 17, 21, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#10b981',
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            borderWidth: 1,
+                            padding: 10,
+                            callbacks: {
+                                label: (ctx) => `$${ctx.raw.toLocaleString()}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false, drawBorder: false },
+                            ticks: { color: '#6b7280', maxTicksLimit: 7 }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
+                            ticks: {
+                                color: '#6b7280',
+                                callback: (val) => '$' + val.toLocaleString()
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

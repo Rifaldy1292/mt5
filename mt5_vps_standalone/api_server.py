@@ -52,9 +52,9 @@ def load_cache_from_disk():
                     data = json.load(f)
                     if isinstance(data, dict):
                         CREDENTIALS_CACHE = data
-                        print(f"📦 [VAULT] Loaded {len(CREDENTIALS_CACHE)} account(s) credentials from disk cache.")
+                        print(f"[VAULT] Loaded {len(CREDENTIALS_CACHE)} account(s) credentials from disk cache.")
         except Exception as e:
-            print(f"⚠️ [VAULT] Failed to load credentials from disk: {e}")
+            print(f"[VAULT] Failed to load credentials from disk: {e}")
 
 
 def save_cache_to_disk():
@@ -64,7 +64,7 @@ def save_cache_to_disk():
             with open(CACHE_FILE, 'w', encoding='utf-8') as f:
                 json.dump(CREDENTIALS_CACHE, f, indent=2)
         except Exception as e:
-            print(f"⚠️ [VAULT] Failed to save credentials to disk: {e}")
+            print(f"[VAULT] Failed to save credentials to disk: {e}")
 
 
 # Slots Map: slot_id (1..10) -> { 'slot': int, 'port': int, 'terminal': str, 'account_key': str|None, 'last_touch': float, 'process': subprocess.Popen|None }
@@ -138,11 +138,11 @@ def spawn_worker(slot_data: dict):
         cmd = [sys.executable, script_path, f"--slot={slot_id}", f"--port={port}", f"--terminal={term}"]
 
     try:
-        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        proc = subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stderr)
         slot_data['process'] = proc
-        print(f"🚀 [SUPERVISOR] Spawned Worker Slot #{slot_id} on 127.0.0.1:{port} (PID: {proc.pid})")
+        print(f"[SUPERVISOR] Spawned Worker Slot #{slot_id} on 127.0.0.1:{port} (PID: {proc.pid})")
     except Exception as e:
-        print(f"❌ [SUPERVISOR] Failed to spawn Worker Slot #{slot_id}: {e}")
+        print(f"[SUPERVISOR] Failed to spawn Worker Slot #{slot_id}: {e}")
 
 
 def supervisor_loop():
@@ -152,7 +152,7 @@ def supervisor_loop():
         for s in SLOTS:
             proc = s.get('process')
             if proc is None or proc.poll() is not None:
-                print(f"⚠️ [SUPERVISOR] Worker Slot #{s['slot']} died or not running. Restarting...")
+                print(f"[SUPERVISOR] Worker Slot #{s['slot']} died or not running. Restarting...")
                 spawn_worker(s)
 
 
@@ -233,7 +233,7 @@ def find_or_bind_slot(acc_key: str) -> dict:
             chosen_slot = min(SLOTS, key=lambda x: x['last_touch'])
 
         # 4. Connect chosen slot with cached credentials
-        print(f"🔀 [DISPATCHER] Assigning account {acc_key} to Slot #{chosen_slot['slot']} (Auto-Shift)...")
+        print(f"[DISPATCHER] Assigning account {acc_key} to Slot #{chosen_slot['slot']} (Auto-Shift)...")
         login_res = query_worker_http(
             port=chosen_slot['port'],
             method='POST',
@@ -440,7 +440,7 @@ class MasterGatewayHandler(BaseHTTPRequestHandler):
                         except Exception:
                             pass
 
-            print(f"🛑 [LOGOUT] Account {acc_param} logged out and removed from credentials cache.")
+            print(f"[LOGOUT] Account {acc_param} logged out and removed from credentials cache.")
             self._send_json(200, {
                 'status': 'DISCONNECTED',
                 'account': acc_param,
@@ -453,7 +453,7 @@ class MasterGatewayHandler(BaseHTTPRequestHandler):
 
 def start_master_gateway():
     print("=" * 65)
-    print(f"🌟 TradeRoom MT5 10-Slot Dynamic Master Gateway Starting...")
+    print(f"TradeRoom MT5 10-Slot Dynamic Master Gateway Starting...")
     print(f"   - Listening on          : http://{HOST}:{PORT}")
     print(f"   - Total Isolated Slots  : {TOTAL_SLOTS}")
     print(f"   - Auto-Shift Idle Rule  : {BUSY_THRESHOLD_SECONDS}s threshold")
@@ -472,7 +472,7 @@ def start_master_gateway():
     sup_thread.start()
 
     server = ThreadingHTTPServer((HOST, PORT), MasterGatewayHandler)
-    print(f"✅ [MASTER GATEWAY] Ready on http://{HOST}:{PORT}")
+    print(f"[MASTER GATEWAY] Ready on http://{HOST}:{PORT}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
