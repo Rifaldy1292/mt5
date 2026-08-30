@@ -1,6 +1,7 @@
 services:
   mt5-bridge:
     build: .
+    platform: linux/amd64
     container_name: traderoom_mt5_bridge
     restart: unless-stopped
     ports:

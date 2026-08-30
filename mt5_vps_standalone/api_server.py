@@ -156,25 +156,33 @@ def supervisor_loop():
                 spawn_worker(s)
 
 
-def query_worker_http(port: int, method: str, path: str, data: dict = None, timeout: int = 15) -> dict:
+def query_worker_http(port: int, method: str, path: str, data: dict = None, timeout: int = 15, max_retries: int = 5) -> dict:
     """Send HTTP request to an internal micro-worker."""
     url = f"http://127.0.0.1:{port}{path}"
     headers = {'Content-Type': 'application/json'}
     body_bytes = json.dumps(data).encode('utf-8') if data else None
 
-    req = Request(url, data=body_bytes, headers=headers, method=method)
-    try:
-        with urlopen(req, timeout=timeout) as res:
-            res_body = res.read().decode('utf-8')
-            return json.loads(res_body)
-    except Exception as exc:
-        if hasattr(exc, 'read'):
-            try:
-                err_json = json.loads(exc.read().decode('utf-8'))
-                return err_json
-            except Exception:
-                pass
-        raise RuntimeError(f"Internal Worker HTTP {port} Error: {exc}")
+    for attempt in range(max_retries):
+        req = Request(url, data=body_bytes, headers=headers, method=method)
+        try:
+            with urlopen(req, timeout=timeout) as res:
+                res_body = res.read().decode('utf-8')
+                return json.loads(res_body)
+        except Exception as exc:
+            if hasattr(exc, 'read'):
+                try:
+                    err_json = json.loads(exc.read().decode('utf-8'))
+                    return err_json
+                except Exception:
+                    pass
+            
+            err_str = str(exc)
+            if '10061' in err_str or 'Connection refused' in err_str:
+                if attempt < max_retries - 1:
+                    time.sleep(1.0)
+                    continue
+
+            raise RuntimeError(f"Internal Worker HTTP {port} Error: {exc}")
 
 
 def account_key_of(login: Any, server: str = '') -> str:
